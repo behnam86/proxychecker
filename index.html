@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Telegram Proxy Finder</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2f81f7"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="icon" href="icon-192.png" type="image/png"/>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+    .btn {
+      background: #2f81f7;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      margin: 0.5rem;
+    }
+    select, option {
+      color: black;
+      padding: 0.4rem;
+    }
+    canvas {
+      background: white;
+      padding: 1rem;
+      border-radius: 1rem;
+    }
+  </style>
+</head>
+<body class="flex justify-center items-start min-h-screen">
+  <div class="w-full max-w-3xl p-4">
+    <h1 id="title" class="text-2xl font-bold mb-4">Telegram Proxy Finder</h1>
+    <div class="flex flex-wrap gap-4 mb-4">
+      <select id="countryFilter"></select>
+      <select id="sortFilter">
+        <option value="pingAsc">Lowest Ping</option>
+        <option value="pingDesc">Highest Ping</option>
+      </select>
+      <select id="languageSwitcher">
+        <option value="fa">🇮🇷 فارسی</option>
+        <option value="en" selected>🇺🇸 English</option>
+      </select>
+    </div>
+    <button onclick="loadProxies()" class="btn">Load Proxies</button>
+    <button onclick="drawPingChart()" class="btn">Show Chart</button>
+    <div id="proxyContainer" class="mt-4"></div>
+    <canvas id="pingChart" class="mt-8" width="600" height="300"></canvas>
+  </div>
+
+  <script>
+    const translations = {
+      fa: {
+        title: "پروکسی یاب تلگرام",
+        connect: "اتصال",
+        ping: "پینگ",
+        country: "کشور"
+      },
+      en: {
+        title: "Telegram Proxy Finder",
+        connect: "Connect",
+        ping: "Ping",
+        country: "Country"
+      }
+    };
+
+    const proxies = [
+      { server: "1.1.1.1", port: 443, secret: "abc", ping: 120, country: "Germany" },
+      { server: "2.2.2.2", port: 443, secret: "def", ping: 320, country: "Iran" },
+      { server: "3.3.3.3", port: 443, secret: "ghi", ping: 80,  country: "USA" }
+    ];
+
+    let currentLang = "en";
+
+    function applyTranslation() {
+      const t = translations[currentLang];
+      document.getElementById("title").innerText = t.title;
+    }
+
+    function loadProxies() {
+      const country = document.getElementById("countryFilter").value;
+      const sort = document.getElementById("sortFilter").value;
+
+      let filtered = proxies.slice();
+      if (country) {
+        filtered = filtered.filter(p => p.country === country);
+      }
+
+      if (sort === "pingAsc") {
+        filtered.sort((a, b) => a.ping - b.ping);
+      } else {
+        filtered.sort((a, b) => b.ping - a.ping);
+      }
+
+      const container = document.getElementById("proxyContainer");
+      container.innerHTML = "";
+      filtered.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "mb-2 border p-2 rounded bg-gray-800";
+        div.innerHTML = `
+          <div><strong>${translations[currentLang].country}:</strong> ${p.country}</div>
+          <div><strong>${translations[currentLang].ping}:</strong> ${p.ping}ms</div>
+          <div><a href="tg://proxy?server=${p.server}&port=${p.port}&secret=${p.secret}" class="btn">${translations[currentLang].connect}</a></div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function drawPingChart() {
+      const ctx = document.getElementById('pingChart').getContext('2d');
+      const labels = proxies.map(p => p.server);
+      const data = proxies.map(p => p.ping);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Ping (ms)',
+            data: data,
+            backgroundColor: '#2f81f7'
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function setupFilters() {
+      const countrySelect = document.getElementById("countryFilter");
+      const countries = [...new Set(proxies.map(p => p.country))];
+      countrySelect.innerHTML = "<option value=''>All Countries</option>" + countries.map(c => `<option value="${c}">${c}</option>`).join("");
+    }
+
+    document.getElementById("languageSwitcher").addEventListener("change", (e) => {
+      currentLang = e.target.value;
+      applyTranslation();
+      loadProxies();
+    });
+
+    window.addEventListener("load", () => {
+      applyTranslation();
+      setupFilters();
+      loadProxies();
+      registerServiceWorker();
+    });
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.error('ServiceWorker error:', err));
+      }
+    }
+  </script>
+</body>
+</html>
